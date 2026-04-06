@@ -154,15 +154,26 @@ int getWindowSize(int *rows, int *cols) {
 }
 
 /*** file i/o ***/
-void editorOpen(void) {
-	char *line = "Hello World!";
-	ssize_t line_len = 13;
+void editorOpen(char *filename) {
+	FILE *fp = fopen(filename, "r");
+	if(!fp) die("fopen");
 
-	E.row.size = line_len;
-	E.row.chars = malloc(line_len + 1);
-	memcpy(E.row.chars, line, line_len);
-	E.row.chars[line_len] = '\0';
-	E.numrows = 1;
+	char *line = NULL;
+	size_t linecap = 0;
+	ssize_t line_len;
+	line_len = getline(&line, &linecap, fp);
+	if(line_len != 1) {
+		while(line_len > 0 && (line[line_len - 1] == '\n' ||
+								line[line_len - 1] == '\r'))
+			line_len--;
+		E.row.size = line_len;
+		E.row.chars = malloc(line_len + 1);
+		memcpy(E.row.chars, line, line_len);
+		E.row.chars[line_len] = '\0';
+		E.numrows = 1;
+	}
+	free(line);
+	fclose(fp);
 }
 
 /*** append buffer ***/
@@ -222,6 +233,7 @@ void editorDrawRows(struct abuf *ab) {
 void editorRefreshScreen(void) {
 	struct abuf ab = ABUF_INIT;
 
+	// Clear the screen
 	abAppend(&ab, "\x1b[?25l", 6);
 	abAppend(&ab, "\x1b[H", 3);
 
@@ -233,6 +245,7 @@ void editorRefreshScreen(void) {
 
 	abAppend(&ab, "\x1b[?25h", 6);
 
+	// Flush the append buffer
 	write(STDOUT_FILENO, ab.b, ab.len);
 	abFree(&ab);
 }
